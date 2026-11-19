@@ -106,6 +106,7 @@ function analyze() {
 
         updateDashboard();
         renderQueue(requests);
+        renderRequestLanes();
         renderSequence();
         renderChart();
 
@@ -207,11 +208,7 @@ function renderTicks() {
 
 function moveHead(cylinder) {
 
-    const range = state.diskMax - state.diskMin;
-
-    const percentage = range === 0
-        ? 0
-        : ((cylinder - state.diskMin) / range) * 100;
+    const percentage = getCylinderPercentage(cylinder);
 
     $("headMarker").style.left = `${percentage}%`;
 
@@ -222,6 +219,117 @@ function moveHead(cylinder) {
     $("headPosition").textContent = cylinder;
 
     $("currentCylinderInfo").textContent = cylinder;
+}
+
+function getCylinderPercentage(cylinder) {
+    const range = state.diskMax - state.diskMin;
+
+    return range === 0
+        ? 0
+        : ((cylinder - state.diskMin) / range) * 100;
+}
+
+function renderRequestLanes() {
+    const container = $("requestLanes");
+
+    container.innerHTML = "";
+
+    const count = state.service.length;
+    $("requestLaneCount").textContent =
+        `${count} ${count === 1 ? "request" : "requests"} · service order`;
+
+    if (count === 0) {
+        const emptyState = document.createElement("span");
+        emptyState.className = "empty-state";
+        emptyState.textContent = "No requests to display.";
+        container.appendChild(emptyState);
+        return;
+    }
+
+    state.service.forEach((value, index) => {
+        const source = index === 0 ? state.head : state.service[index - 1];
+        const sourcePosition = getCylinderPercentage(source);
+        const targetPosition = getCylinderPercentage(value);
+
+        const lane = document.createElement("div");
+        lane.className = "request-lane";
+        lane.dataset.index = index;
+
+        const label = document.createElement("div");
+        label.className = "request-lane-label";
+
+        const order = document.createElement("span");
+        order.className = "request-lane-order";
+        order.textContent = String(index + 1).padStart(2, "0");
+
+        const cylinder = document.createElement("strong");
+        cylinder.textContent = `Cylinder ${value}`;
+
+        label.append(order, cylinder);
+
+        const track = document.createElement("div");
+        track.className = "request-lane-track";
+        track.setAttribute("aria-hidden", "true");
+
+        const seek = document.createElement("div");
+        seek.className = "request-lane-seek";
+        seek.style.left = `${Math.min(sourcePosition, targetPosition)}%`;
+        seek.style.width = `${Math.abs(targetPosition - sourcePosition)}%`;
+
+        const target = document.createElement("span");
+        target.className = "request-lane-target";
+        target.style.left = `${targetPosition}%`;
+
+        const head = document.createElement("span");
+        head.className = "request-lane-head";
+
+        track.append(seek, target, head);
+
+        const detail = document.createElement("span");
+        detail.className = "request-lane-detail";
+        detail.textContent = `${source} → ${value}`;
+
+        const status = document.createElement("span");
+        status.className = "request-lane-status";
+
+        lane.append(label, track, detail, status);
+        container.appendChild(lane);
+    });
+
+    updateRequestLanes();
+}
+
+function updateRequestLanes() {
+    const activeIndex = state.serviceSteps.findIndex(step => step >= state.step);
+    const currentCylinder = state.path[state.step];
+
+    document.querySelectorAll(".request-lane").forEach(lane => {
+        const index = Number(lane.dataset.index);
+        const requestStep = state.serviceSteps[index];
+        const completed = requestStep <= state.step;
+        const active = index === activeIndex;
+        const current = requestStep === state.step;
+        const head = lane.querySelector(".request-lane-head");
+        const status = lane.querySelector(".request-lane-status");
+
+        lane.classList.toggle("is-complete", completed);
+        lane.classList.toggle("is-current", active);
+        lane.classList.toggle("is-target", current);
+        head.classList.toggle("visible", active);
+
+        if (active) {
+            head.style.left = `${getCylinderPercentage(currentCylinder)}%`;
+            lane.setAttribute("aria-current", "step");
+        } else {
+            lane.removeAttribute("aria-current");
+        }
+
+        status.textContent = completed
+            ? "Serviced"
+            : active
+                ? "Moving"
+                : "Waiting";
+    });
 }
 
 function moveToStep(index) {
@@ -264,6 +372,8 @@ function moveToStep(index) {
         `${getCompletedRequestCount()}/${state.service.length}`;
 
     highlightSequence();
+    updateRequestLanes();
+    renderChart();
 }
 
 
@@ -475,11 +585,16 @@ function highlightSequence() {
     items.forEach(item => {
 
         const index = Number(item.dataset.index);
-        const completed = state.serviceSteps[index] <= state.step;
-        const current = state.serviceSteps[index] === state.step;
 
-        item.classList.toggle("completed", completed && !current);
-        item.classList.toggle("current", current);
+        item.style.borderColor =
+            state.serviceSteps[index] <= state.step
+                ? "#4ce0a1"
+                : "#2b3b59";
+
+        item.style.color =
+            state.serviceSteps[index] <= state.step
+                ? "#4ce0a1"
+                : "#b8efff";
 
     });
 
@@ -664,10 +779,6 @@ $("themeButton").addEventListener("click", () => {
 // INITIAL SETUP
 // --------------------------------------------------
 
-renderQueue(getRequests());
-
-renderTicks();
-
-moveHead(state.head);
+analyze();
 
 window.addEventListener("resize", renderChart);
