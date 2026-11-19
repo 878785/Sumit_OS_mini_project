@@ -617,28 +617,27 @@ a {
 
 .request-lanes {
     display: grid;
-    gap: 7px;
-    max-height: 320px;
-    overflow-y: auto;
+    gap: 9px;
     margin-top: 10px;
-    padding: 2px 5px 2px 0;
+    padding: 2px 0;
 }
 
 .request-lane {
     display: grid;
     grid-template-columns: minmax(98px, 1fr) minmax(90px, 2fr) auto auto;
     align-items: center;
-    gap: 10px;
-    min-height: 38px;
-    padding: 7px 9px;
-    border: 1px solid transparent;
+    gap: 12px;
+    min-height: 48px;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
     border-radius: 8px;
+    background: #0c1322;
     transition: background 180ms ease, border-color 180ms ease;
 }
 
 .request-lane.is-current {
-    background: #42d9f50d;
-    border-color: #42d9f533;
+    background: #101f30;
+    border-color: #42d9f577;
 }
 
 .request-lane-label {
@@ -1249,3 +1248,4 @@ body.light-theme .request-lane-track {
         flex-direction: column;
     }
 }
+
